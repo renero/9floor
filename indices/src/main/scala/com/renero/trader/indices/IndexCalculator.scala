@@ -163,7 +163,7 @@ object IndexCalculator {
     windowValues.foldLeft(indices(0)) ((min, x) => if (x.value < min.value) x else min)
   }
 
-  def mean(xs: List[Double]): Double = xs.sum / xs.size
+  def mean(xs: List[Double]): Double = if (xs.isEmpty) 0.0 else xs.sum / xs.size
 
   def stddev(xs: List[Double], avg: Double): Double =
     if (xs.isEmpty) 0.0 else math.sqrt((0.0 /: xs) { (a, e) => a + math.pow(e - avg, 2.0) } / xs.size)
