@@ -6,7 +6,7 @@ import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.joda.time.DateTime
 
-case class TickData(day: DateTime, hour: DateTime, price: Double, volume: Double, low: Double, high:Double)
+case class TickData(day: DateTime, hour: DateTime, price: Double, volume: Double, low: Double, high: Double)
 case class TimeSerie(day: DateTime, value: Double)
 
 object IndexCalculator {
@@ -14,7 +14,7 @@ object IndexCalculator {
   val CurrentDate = new DateTime(2013, 12, 31, 0, 0, 0, 0).getMillis
 
   def process(sc: SparkContext, path: String) {
-    val tickData = sc.textFile(path).map { line =>
+    val ticks = sc.textFile(path).map { line =>
       val fields = line.split(',')
       new TickData(
         DateTimeFormat.forPattern("yyyy-MM-dd").parseDateTime(fields(0).substring(0, 10)),
@@ -23,7 +23,7 @@ object IndexCalculator {
       )
     }
 
-    val close = closeValues(tickData)
+    val close = closeValues(ticks)
 
     val PVI = computeVolumeIndex(close, (today, yesterday) => today < yesterday)
     val NVI = computeVolumeIndex(close, (today, yesterday) => today >= yesterday)
@@ -69,7 +69,7 @@ object IndexCalculator {
    * https://www.visualchart.com/esxx/ayuda_F1/Indicators/Volumen/IVN.htm
    * http://www.metastock.com/Customer/Resources/TAAZ/?c=3&p=92
    * @param data      The data over which computing the INV index
-   * @return          A list with the index, computed for evey change in Tick value.
+   * @return          A list with the index, computed for every change in Tick value.
    */
   def computeVolumeIndex(data: Array[TickData], matchesVolumeIndexLambda: (Double,Double) => Boolean)
       : List[TimeSerie] = {
