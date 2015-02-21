@@ -148,25 +148,25 @@ object IndexCalculator {
    */
   def highestLowest(indices: List[TimeSerie], currentDate: Long, windowSize: Int): (TimeSerie, TimeSerie) = {
     val windowValues = indices.filter(_.day.getMillis <= currentDate).reverseIterator.take(windowSize).toList
-    val max = windowValues.foldLeft(indices(0)) ((max, x) => if (x.value > max.value) x else max)
-    val min = windowValues.foldLeft(indices(0)) ((min, x) => if (x.value < min.value) x else min)
+    val max = windowValues.foldLeft(indices(0)) ((max, x) => Seq(x, max).maxBy(_.value))
+    val min = windowValues.foldLeft(indices(0)) ((min, x) => Seq(x, min).minBy(_.value))
     (max, min)
   }
 
   def highest(indices: List[TimeSerie], currentDate: Long, windowSize: Int): TimeSerie = {
     val windowValues = indices.filter(_.day.getMillis <= currentDate).reverseIterator.take(windowSize).toList
-    windowValues.foldLeft(indices(0)) ((max, x) => if (x.value > max.value) x else max)
+    windowValues.foldLeft(indices(0)) ((max, x) => Seq(x, max).maxBy(_.value))
   }
 
   def lowest(indices: List[TimeSerie], currentDate: Long, windowSize: Int): TimeSerie = {
-    val windowValues = indices.filter(_.day.getMillis <= currentDate ).reverseIterator.take(windowSize).toList
-    windowValues.foldLeft(indices(0)) ((min, x) => if (x.value < min.value) x else min)
+    val windowValues = indices.filter(_.day.getMillis <= currentDate).reverseIterator.take(windowSize).toList
+    windowValues.foldLeft(indices(0)) ((min, x) => Seq(x, min).minBy(_.value))
   }
 
   def mean(xs: List[Double]): Double = if (xs.isEmpty) 0.0 else xs.sum / xs.size
 
-  def stddev(xs: List[Double], avg: Double): Double =
-    if (xs.isEmpty) 0.0 else math.sqrt((0.0 /: xs) { (a, e) => a + math.pow(e - avg, 2.0) } / xs.size)
+  def stddev(xs: List[Double]): Double =
+    if (xs.isEmpty) 0.0 else math.sqrt((0.0 /: xs) { (a, e) => a + math.pow(e - mean(xs), 2.0) } / xs.size)
 
   /**
    * http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:bollinger_bands
@@ -176,8 +176,8 @@ object IndexCalculator {
       val priceList = windowTicks.map(tick => TimeSerie(tick.day, tick.price))
       val priceListValues = priceList.map(_.value)
       val sma = mean(priceListValues)
-      val stdev = stddev(priceListValues, sma)
-      bollinger :+(TimeSerie(priceList.last.day, sma + (stdev * 2)), TimeSerie(priceList.last.day, sma - (stdev * 2)))
+      val stdev = stddev(priceListValues)
+      bollinger :+ (TimeSerie(priceList.last.day, sma + (stdev * 2)), TimeSerie(priceList.last.day, sma - (stdev * 2)))
     }.unzip
   }
   
@@ -286,6 +286,6 @@ object IndexCalculator {
   def computeGreen(brown: List[TimeSerie], oscp: List[TimeSerie], firstDay: Long): List[TimeSerie] = {
     val m = laterOrEqualThan(brown, firstDay)
     val o = laterOrEqualThan(oscp, firstDay)
-    (m, o).zipped.toList.map(x => TimeSerie(x._1.day, (x._1.value + x._2.value)))
+    (m, o).zipped.toList.map(x => TimeSerie(x._1.day, x._1.value + x._2.value))
   }
 }
