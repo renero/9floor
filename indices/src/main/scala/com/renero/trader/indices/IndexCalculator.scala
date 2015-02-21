@@ -1,4 +1,4 @@
-package com.renero.trader.indices.process
+package com.renero.trader.indices
 
 import com.github.nscala_time.time.Imports._
 
