@@ -12,4 +12,9 @@ libraryDependencies in ThisBuild ++= Seq(
   "org.scalatest" %% "scalatest" % "2.2.1" % "test"
 )
 
+ivyXML in ThisBuild :=
+  <dependency org="org.eclipse.jetty.orbit" name="javax.servlet" rev="2.5.0.v201103041518">
+    <artifact name="javax.servlet" type="orbit" ext="jar"/>
+  </dependency>
+
 credentials in ThisBuild += Credentials(Path.userHome / ".ivy2" / ".credentials")

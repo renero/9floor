@@ -1,5 +1,4 @@
 import sbt._
-import sbt.Keys._
 import sbtassembly.Plugin._
 import sbtassembly.Plugin.AssemblyKeys._
 
@@ -25,6 +24,8 @@ object Build extends sbt.Build {
     )
       settings(Defaults.itSettings: _*)
       settings(KonkordatorAssembly: _*)
+      aggregate(indices)
+      dependsOn(indices % "compile->compile;test->test")
     )
 
   lazy val indices = (Project(id = projectId("indices"), base = file("indices"))
