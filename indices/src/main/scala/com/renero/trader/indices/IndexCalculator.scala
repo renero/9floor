@@ -39,7 +39,7 @@ object IndexCalculator {
     val RSI = relativeStrengthIndex(close)
     val STOC = stochasticOscillator(close.toList, 14, 3)
 
-    val firstDay = new DateTime(2013, 2, 5, 0, 0, 0, 0).getMillis
+    val firstDay = new DateTime(2013, 2, 5, 0, 0, 0).getMillis
     val brown = computeBrown(RSI, MFI, bollingerOsc, STOC, firstDay)
     val green = computeGreen(brown, oscp, firstDay)
   }
@@ -50,15 +50,16 @@ object IndexCalculator {
    * @return          the values of the tick at close
    */
   def closeValues(tickData: RDD[TickData]): Array[TickData] = {
-    val midnight = new DateTime(1970, 1, 1, 23, 59, 59, 0)
+    val midnight = new DateTime(1970, 1, 1, 23, 59, 59)
     val ticksGroupedByDate = tickData.groupBy(_.day).sortBy { case (day, _) => day }
     ticksGroupedByDate.collect.map { pair =>
       val (day, ticks) = pair
-      val openPrice = ticks.head.price
-      val closePrice = ticks.last.price
+      val prices = ticks.map(_.price)
+      val openPrice = prices.head
+      val closePrice = prices.last
       val closeVolume = ticks.map(_.volume).sum
-      val low  = ticks.foldLeft(openPrice)((min, tick) => Math.min(tick.price, min))
-      val high = ticks.foldLeft(openPrice)((max, tick) => Math.max(tick.price, max))
+      val low = prices.min
+      val high = prices.max
       TickData(day, midnight, closePrice, closeVolume, low, high)
     }
   }
@@ -260,9 +261,9 @@ object IndexCalculator {
     val bosc = laterOrEqualThan(BOSC, firstDay)
     val stoc = laterOrEqualThan(STOC, firstDay)
     val trio = (rsi, mfi, bosc).zipped
-    def flattenQuad(A: List[((TimeSerie, TimeSerie, TimeSerie), TimeSerie)]):
-    List[(TimeSerie, TimeSerie, TimeSerie, TimeSerie)] =
-      A.map(a => (a._1._1, a._1._2, a._1._3, a._2))
+    def flattenQuad(quads: List[((TimeSerie, TimeSerie, TimeSerie), TimeSerie)])
+        : List[(TimeSerie, TimeSerie, TimeSerie, TimeSerie)] =
+      quads.map(q => (q._1._1, q._1._2, q._1._3, q._2))
     val quad = flattenQuad((trio, stoc).zipped.toList)
     quad.map(x => TimeSerie(x._1.day, (x._1.value + x._2.value + x._3.value + (x._4.value / 3)) / 2))
   }
