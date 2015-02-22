@@ -1,6 +1,6 @@
-name := "9floor"
+name := "konkordator"
 
-organization in ThisBuild := "com.renero"
+organization in ThisBuild := "com.ninthfloor"
 
 version in ThisBuild := "0.1.0"
 

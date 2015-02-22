@@ -1,4 +1,4 @@
-package com.renero.trader.indices
+package com.ninthfloor.konkordator.indices
 
 import com.github.nscala_time.time.Imports._
 import org.apache.spark.SparkContext

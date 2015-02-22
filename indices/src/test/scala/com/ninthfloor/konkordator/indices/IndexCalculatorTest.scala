@@ -1,4 +1,4 @@
-package com.renero.trader.indices
+package com.ninthfloor.konkordator.indices
 
 import org.scalatest.{FlatSpec, Matchers, PrivateMethodTester}
 
