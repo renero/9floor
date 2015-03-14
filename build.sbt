@@ -4,7 +4,7 @@ organization in ThisBuild := "com.ninthfloor"
 
 version in ThisBuild := "0.1.0"
 
-scalaVersion in ThisBuild := "2.11.5"
+scalaVersion in ThisBuild := "2.10.4"
 
 libraryDependencies in ThisBuild ++= Seq(
   "com.github.nscala-time" %% "nscala-time" % "1.8.0",
