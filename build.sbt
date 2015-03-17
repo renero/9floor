@@ -8,7 +8,7 @@ scalaVersion in ThisBuild := "2.11.5"
 
 libraryDependencies in ThisBuild ++= Seq(
   "com.github.nscala-time" %% "nscala-time" % "1.8.0",
-  "org.apache.spark" %% "spark-core" % "1.2.1" % "provided",
+  "org.apache.spark" %% "spark-core" % "1.3.0" % "provided",
   "org.scalatest" %% "scalatest" % "2.2.4" % "test"
 )
 
