@@ -6,7 +6,7 @@ import org.apache.spark.rdd.RDD
 import org.joda.time.DateTime
 
 case class TickData(day: DateTime, hour: DateTime, price: Double, volume: Double, low: Double, high: Double)
-case class TimeSeries(day: DateTime, value: Double)
+case class TimeSerie(day: DateTime, value: Double)
 
 object IndexCalculator {
 
@@ -25,8 +25,7 @@ object IndexCalculator {
       )
     }
 
-    val close = closeValues(ticks)
-
+    val close = closingValues(ticks)
     val PVI = computeVolumeIndex(close, (today, yesterday) => today < yesterday)
     val NVI = computeVolumeIndex(close, (today, yesterday) => today >= yesterday)
     val sPVI = exponentialAverage(PVI)
@@ -52,28 +51,28 @@ object IndexCalculator {
    * @param tickData  the series of tickData
    * @return          the values of the tick at close
    */
-  def closeValues(tickData: RDD[TickData]): Seq[TickData] = {
+  def closingValues(tickData: RDD[TickData]): Seq[TickData] = {
     val midnight = new DateTime(1970, 1, 1, 23, 59, 59)
     tickData.groupBy(_.day).sortBy { case (day, _) => day }.map {
       case (day, ticks) =>
         val prices = ticks.map(_.price)
-        val closePrice = prices.last
-        val closeVolume = ticks.map(_.volume).sum
+        val closingPrice = prices.last
+        val closingVolume = ticks.map(_.volume).sum
         val low = prices.min
         val high = prices.max
-        TickData(day, midnight, closePrice, closeVolume, low, high)
+        TickData(day, midnight, closingPrice, closingVolume, low, high)
     }.collect
   }
 
   /**
-   * Compute the IVN/P (N/P Volume Index) index:
+   * Compute the Negative/Positive Volume Index NVI (N/P Volume Index) index:
    * https://www.visualchart.com/esxx/ayuda_F1/Indicators/Volumen/IVN.htm
    * http://www.metastock.com/Customer/Resources/TAAZ/?c=3&p=92
-   * @param data      The data over which computing the INV index
+   * @param data      The data over which computing the NVI
    * @return          A list with the index, computed for every change in Tick value.
    */
-  def computeVolumeIndex(data: Seq[TickData], matchesVolumeIndex: (Double, Double) => Boolean): Seq[TimeSeries] = {
-    val initValue = Seq(TimeSeries(data(0).day, 1000.0))
+  def computeVolumeIndex(data: Seq[TickData], matchesVolumeIndex: (Double, Double) => Boolean): Seq[TimeSerie] = {
+    val initValue = Seq(TimeSerie(data(0).day, 1000.0))
     data.sliding(2).foldLeft(initValue) { (index, pair) =>
       val yesterdaysVI = index.last.value
       val value =
@@ -83,7 +82,7 @@ object IndexCalculator {
             ((pair(1).price - pair(0).price) / pair(0).price) * 100
           yesterdaysVI + percentagePriceChange(pair)
         }
-      index :+ TimeSeries(pair(1).day, value)
+      index :+ TimeSerie(pair(1).day, value)
     }
   }
 
@@ -93,49 +92,49 @@ object IndexCalculator {
    * @param alpha     the smoothing parameter (the shorter, the smoother).
    * @return          a list with the smoothed values
    */
-  def exponentialAverage(data: Seq[TimeSeries], alpha: Double = 0.1): Seq[TimeSeries] =
-    data.foldLeft(Seq[TimeSeries](data(0))) { (accumulator, element) =>
-      accumulator :+ TimeSeries(element.day, alpha * element.value + (1 - alpha) * accumulator.last.value)
+  def exponentialAverage(data: Seq[TimeSerie], alpha: Double = 0.1): Seq[TimeSerie] =
+    data.foldLeft(Seq[TimeSerie](data(0))) { (accumulator, element) =>
+      accumulator :+ TimeSerie(element.day, alpha * element.value + (1 - alpha) * accumulator.last.value)
     }.tail
 
-  def printTimeSeriesValues(series: Seq[TimeSeries]) {
+  def printTimeSerieValues(series: Seq[TimeSerie]) {
     series.foreach(ts => println(ts.value))
   }
 
-  def computeOSCP(volIndex: Seq[TimeSeries], sVolIndex: Seq[TimeSeries], viMax: Double, viMin: Double)
-      : Seq[TimeSeries] =
+  def computeOSCP(volIndex: Seq[TimeSerie], sVolIndex: Seq[TimeSerie], viMax: Double, viMin: Double)
+      : Seq[TimeSerie] =
     volIndex.zip(sVolIndex).map {
-      case (vi, expVI) => TimeSeries(vi.day, ((vi.value - expVI.value) * 100) / (viMax - viMin))
+      case (vi, expVI) => TimeSerie(vi.day, ((vi.value - expVI.value) * 100) / (viMax - viMin))
     }
 
   /* *** Money Flow Index *** */
-  def computeTypical(data: Seq[TickData]): Seq[TimeSeries] =
-    data.map(tick => TimeSeries(tick.day, (tick.price * tick.high * tick.low) / 3))
+  def computeTypical(data: Seq[TickData]): Seq[TimeSerie] =
+    data.map(tick => TimeSerie(tick.day, (tick.price + tick.high + tick.low) / 3))
 
-  def computeRawMoneyFlow(ticks: Seq[TickData], typical: Seq[TimeSeries]): Seq[TimeSeries] = {
+  def computeRawMoneyFlow(ticks: Seq[TickData], typical: Seq[TimeSerie]): Seq[TimeSerie] = {
     val volume = ticks.map(_.volume)
-    val rawMoneyFlow = typical.zip(volume).map { case (typData, vol) => TimeSeries(typData.day, typData.value * vol) }
-    val initValue = TimeSeries(ticks(0).day, 1)
-    val upDownList = ticks.sliding(2).foldLeft(Seq[TimeSeries](initValue)) { (upOrDownList, pair) =>
-      upOrDownList :+ TimeSeries(pair(1).day, if (pair(1).price >= pair(0).price) 1 else -1)
+    val rawMoneyFlow = typical.zip(volume).map { case (typData, vol) => TimeSerie(typData.day, typData.value * vol) }
+    val initValue = TimeSerie(ticks(0).day, 1)
+    val upDownList = ticks.sliding(2).foldLeft(Seq[TimeSerie](initValue)) { (upOrDownList, pair) =>
+      upOrDownList :+ TimeSerie(pair(1).day, if (pair(1).price >= pair(0).price) 1 else -1)
     }.tail
-    rawMoneyFlow.tail.zip(upDownList).map { case (raw, sign) => TimeSeries(raw.day, raw.value * sign.value) }
+    rawMoneyFlow.tail.zip(upDownList).map { case (raw, sign) => TimeSerie(raw.day, raw.value * sign.value) }
   }
 
-  def computeMoneyFlowRatio(rawMoneyFlow: Seq[TimeSeries]): Seq[TimeSeries] =
-    rawMoneyFlow.sliding(14).foldLeft(Seq[TimeSeries]()) { (mfrList, windowMF) =>
+  def computeMoneyFlowRatio(rawMoneyFlow: Seq[TimeSerie]): Seq[TimeSerie] =
+    rawMoneyFlow.sliding(14).foldLeft(Seq[TimeSerie]()) { (mfrList, windowMF) =>
       val initValue = 0.0
       val (positives, negatives) = windowMF.foldLeft(z = (initValue, initValue)) { (z, mf) =>
         if (mf.value >= 0) (z._1 + mf.value, z._2) else (z._1, z._2 + mf.value)
       }
-      mfrList :+ TimeSeries(windowMF.last.day, Math.abs(positives / negatives))
+      mfrList :+ TimeSerie(windowMF.last.day, Math.abs(positives / negatives))
     }
 
-  def moneyFlowIndex(close: Seq[TickData]): Seq[TimeSeries] = {
+  def moneyFlowIndex(close: Seq[TickData]): Seq[TimeSerie] = {
     val typical = computeTypical(close)
     val rawMoneyFlow = computeRawMoneyFlow(close, typical)
     val moneyFlowRatio = computeMoneyFlowRatio(rawMoneyFlow)
-    moneyFlowRatio.map(x => TimeSeries(x.day, 100 - (100 / (1 + x.value))))
+    moneyFlowRatio.map(x => TimeSerie(x.day, 100 - (100 / (1 + x.value))))
   }
 
   /**
@@ -144,16 +143,16 @@ object IndexCalculator {
    * @param currentDate   The later date for which the max/min are to be searched for.
    * @param windowSize    The number of days to look for the max/min backwards.
    */
-  def highestLowest(indices: Seq[TimeSeries], currentDate: DateTime, windowSize: Int): (TimeSeries, TimeSeries) =
+  def highestLowest(indices: Seq[TimeSerie], currentDate: DateTime, windowSize: Int): (TimeSerie, TimeSerie) =
     (highest(indices, currentDate, windowSize), lowest(indices, currentDate, windowSize))
 
-  def highest(indices: Seq[TimeSeries], currentDate: DateTime, windowSize: Int): TimeSeries =
+  def highest(indices: Seq[TimeSerie], currentDate: DateTime, windowSize: Int): TimeSerie =
     filterIndices(indices, currentDate, windowSize).maxBy(_.value)
 
-  def lowest(indices: Seq[TimeSeries], currentDate: DateTime, windowSize: Int): TimeSeries =
+  def lowest(indices: Seq[TimeSerie], currentDate: DateTime, windowSize: Int): TimeSerie =
     filterIndices(indices, currentDate, windowSize).minBy(_.value)
 
-  def filterIndices(indices: Seq[TimeSeries], currentDate: DateTime, windowSize: Int): Seq[TimeSeries] =
+  def filterIndices(indices: Seq[TimeSerie], currentDate: DateTime, windowSize: Int): Seq[TimeSerie] =
     indices.filter(_.day <= currentDate).reverseIterator.take(windowSize).toSeq
 
   def mean(xs: Seq[Double]): Double = if (xs.isEmpty) 0.0 else xs.sum / xs.size
@@ -164,43 +163,43 @@ object IndexCalculator {
   /**
    * http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:bollinger_bands
    */
-  def bollingerBands(data: Seq[TickData], windowSize: Int = 25): (Seq[TimeSeries], Seq[TimeSeries]) = {
-    data.sliding(windowSize).foldLeft(Seq[(TimeSeries, TimeSeries)]()) { (bollinger, windowTicks) =>
-      val priceList = windowTicks.map(tick => TimeSeries(tick.day, tick.price))
+  def bollingerBands(data: Seq[TickData], windowSize: Int = 25): (Seq[TimeSerie], Seq[TimeSerie]) = {
+    data.sliding(windowSize).foldLeft(Seq[(TimeSerie, TimeSerie)]()) { (bollinger, windowTicks) =>
+      val priceList = windowTicks.map(tick => TimeSerie(tick.day, tick.price))
       val priceListValues = priceList.map(_.value)
       val sma = mean(priceListValues)
       val stdev = stddev(priceListValues)
-      bollinger :+ (TimeSeries(priceList.last.day, sma + (stdev * 2)), TimeSeries(priceList.last.day, sma - (stdev * 2)))
+      bollinger :+ (TimeSerie(priceList.last.day, sma + (stdev * 2)), TimeSerie(priceList.last.day, sma - (stdev * 2)))
     }.unzip
   }
   
-  def bollingerAverage(bUp: Seq[TimeSeries], bDown: Seq[TimeSeries]): Seq[TimeSeries] =
-    bUp.zip(bDown).map { case (up, down) => TimeSeries(up.day, (up.value + down.value) / 2) }
+  def bollingerAverage(bUp: Seq[TimeSerie], bDown: Seq[TimeSerie]): Seq[TimeSerie] =
+    bUp.zip(bDown).map { case (up, down) => TimeSerie(up.day, (up.value + down.value) / 2) }
 
-  def bollingerRange(bUp: Seq[TimeSeries], bDown: Seq[TimeSeries]): Seq[TimeSeries] =
-    bUp.zip(bDown).map { case (up, down) => TimeSeries(up.day, up.value - down.value) }
+  def bollingerRange(bUp: Seq[TimeSerie], bDown: Seq[TimeSerie]): Seq[TimeSerie] =
+    bUp.zip(bDown).map { case (up, down) => TimeSerie(up.day, up.value - down.value) }
 
   /**
    * OB1 = (BollingerUp[25](TotalPrice) + BollingerDown[25](TotalPrice)) / 2
    * OB2 = BollingerUp[25](TotalPrice) - BollingerDown[25](TotalPrice)
    * BollOsc = ((TotalPrice - OB1) / OB2 ) * 100
    */
-  def bollingerOscillator(ticks: Seq[TickData]): Seq[TimeSeries] = {
+  def bollingerOscillator(ticks: Seq[TickData]): Seq[TimeSerie] = {
     val (bUp, bDown) = bollingerBands(ticks.toSeq)
     val bAvg = bollingerAverage(bUp, bDown)
     val bRng = bollingerRange(bUp, bDown)
     val validTicks = ticks.drop(ticks.size - bAvg.size).map(_.price)
     (validTicks, bAvg, bRng).zipped.toSeq.map {
-      case (price, avg, rng) => TimeSeries(avg.day, ((price - avg.value) / rng.value) * 100)
+      case (price, avg, rng) => TimeSerie(avg.day, ((price - avg.value) / rng.value) * 100)
     }
   }
 
   /** RSI **/
-  def avgGainLoss(wSize: Int, gainLoss: Seq[TimeSeries], firstAvg: TimeSeries, criteria: TimeSeries => Boolean)
-      : Seq[TimeSeries] =
-    gainLoss.drop(wSize).foldLeft(Seq[TimeSeries](firstAvg)) { (avgLossList, current) =>
+  def avgGainLoss(wSize: Int, gainLoss: Seq[TimeSerie], firstAvg: TimeSerie, criteria: TimeSerie => Boolean)
+      : Seq[TimeSerie] =
+    gainLoss.drop(wSize).foldLeft(Seq[TimeSerie](firstAvg)) { (avgLossList, current) =>
       val currentValue = if (criteria(current)) Math.abs(current.value) else 0
-      avgLossList :+ TimeSeries(current.day, Math.abs((avgLossList.last.value * (wSize - 1) + currentValue) / wSize))
+      avgLossList :+ TimeSerie(current.day, Math.abs((avgLossList.last.value * (wSize - 1) + currentValue) / wSize))
     }
 
   /**
@@ -209,16 +208,16 @@ object IndexCalculator {
    * @param windowSize
    * @return
    */
-  def relativeStrengthIndex(close: Seq[TickData], windowSize: Int = 14): Seq[TimeSeries] = {
-    val gainLoss = close.sliding(2).foldLeft(Seq[TimeSeries]()) { (gainLossList, pair) =>
-      gainLossList :+ TimeSeries(pair(1).day, pair(1).price - pair(0).price)
+  def relativeStrengthIndex(close: Seq[TickData], windowSize: Int = 14): Seq[TimeSerie] = {
+    val gainLoss = close.sliding(2).foldLeft(Seq[TimeSerie]()) { (gainLossList, pair) =>
+      gainLossList :+ TimeSerie(pair(1).day, pair(1).price - pair(0).price)
     }
     val firstRSIDay = gainLoss.take(windowSize + 1).last.day
-    val firstAvgGain = TimeSeries(
+    val firstAvgGain = TimeSerie(
       firstRSIDay,
       gainLoss.take(windowSize).collect { case ts if ts.value > 0 => ts.value }.sum / windowSize
     )
-    val firstAvgLoss = TimeSeries(
+    val firstAvgLoss = TimeSerie(
       firstRSIDay,
       Math.abs(gainLoss.take(windowSize).collect { case ts if ts.value < 0 => ts.value }.sum / windowSize)
     )
@@ -227,47 +226,47 @@ object IndexCalculator {
     avgGain.zip(avgLoss).map {
       case (gain, loss) =>
         val lossPercentage = if (loss.value == 0) 0 else 100 - (100 / (1 + (gain.value / loss.value)))
-        TimeSeries(gain.day, 100 - lossPercentage)
+        TimeSerie(gain.day, 100 - lossPercentage)
     }
   }
 
-  def stochasticOscillator(close: Seq[TickData], dayPeriod: Int, periodMA: Int): Seq[TimeSeries] = {
-    def tsFromTick(ticks: Seq[TickData], selector: TickData => Double): Seq[TimeSeries] =
-      ticks.map(tick => TimeSeries(tick.day, selector(tick)))
+  def stochasticOscillator(close: Seq[TickData], dayPeriod: Int, periodMA: Int): Seq[TimeSerie] = {
+    def tsFromTick(ticks: Seq[TickData], selector: TickData => Double): Seq[TimeSerie] =
+      ticks.map(tick => TimeSerie(tick.day, selector(tick)))
     close.sliding(dayPeriod).map { period =>
       val lastDay = period.last.day
       val highestHigh = highest(tsFromTick(period, tick => tick.high), lastDay, dayPeriod)
       val lowestLow = lowest(tsFromTick(period, tick => tick.low), lastDay, dayPeriod)
-      TimeSeries(lastDay, ((period.last.price - lowestLow.value) / (highestHigh.value - lowestLow.value)) * 100)
+      TimeSerie(lastDay, ((period.last.price - lowestLow.value) / (highestHigh.value - lowestLow.value)) * 100)
     }.toSeq
   }
 
-  def laterOrEqualThan(list: Seq[TimeSeries], day: DateTime): Seq[TimeSeries] = list.filter(_.day >= day)
+  def laterOrEqualThan(list: Seq[TimeSerie], day: DateTime): Seq[TimeSerie] = list.filter(_.day >= day)
 
   /**
    * brown = (rsi + mfi + BollOsc + (STOC / 3))/2
    */
   def computeBrown(
-      RSI: Seq[TimeSeries],
-      MFI: Seq[TimeSeries],
-      BOSC: Seq[TimeSeries],
-      STOC: Seq[TimeSeries],
-      firstDay: DateTime): Seq[TimeSeries] = {
+      RSI: Seq[TimeSerie],
+      MFI: Seq[TimeSerie],
+      BOSC: Seq[TimeSerie],
+      STOC: Seq[TimeSerie],
+      firstDay: DateTime): Seq[TimeSerie] = {
     val rsi = laterOrEqualThan(RSI, firstDay)
     val mfi = laterOrEqualThan(MFI, firstDay)
     val bosc = laterOrEqualThan(BOSC, firstDay)
     val stoc = laterOrEqualThan(STOC, firstDay)
     val trio = (rsi, mfi, bosc).zipped
-    def flattenQuad(quads: Seq[((TimeSeries, TimeSeries, TimeSeries), TimeSeries)])
-        : Seq[(TimeSeries, TimeSeries, TimeSeries, TimeSeries)] =
+    def flattenQuad(quads: Seq[((TimeSerie, TimeSerie, TimeSerie), TimeSerie)])
+        : Seq[(TimeSerie, TimeSerie, TimeSerie, TimeSerie)] =
       quads.map(q => (q._1._1, q._1._2, q._1._3, q._2))
     val quad = flattenQuad((trio, stoc).zipped.toSeq)
-    quad.map(x => TimeSeries(x._1.day, (x._1.value + x._2.value + x._3.value + (x._4.value / 3)) / 2))
+    quad.map(x => TimeSerie(x._1.day, (x._1.value + x._2.value + x._3.value + (x._4.value / 3)) / 2))
   }
 
-  def computeGreen(brown: Seq[TimeSeries], oscp: Seq[TimeSeries], firstDay: DateTime): Seq[TimeSeries] = {
+  def computeGreen(brown: Seq[TimeSerie], oscp: Seq[TimeSerie], firstDay: DateTime): Seq[TimeSerie] = {
     val m = laterOrEqualThan(brown, firstDay)
     val o = laterOrEqualThan(oscp, firstDay)
-    (m, o).zipped.toSeq.map(x => TimeSeries(x._1.day, x._1.value + x._2.value))
+    (m, o).zipped.toSeq.map(x => TimeSerie(x._1.day, x._1.value + x._2.value))
   }
 }
