@@ -25,7 +25,7 @@ object Build extends sbt.Build {
   lazy val root = (
     Project(
       id = projectId("root"), base = file("."),
-      settings = Defaults.defaultSettings ++ sbtassembly.Plugin.assemblySettings ++ addArtifact(
+      settings = Defaults.coreDefaultSettings ++ sbtassembly.Plugin.assemblySettings ++ addArtifact(
         Artifact(projectId("root"), "assembly"), sbtassembly.Plugin.AssemblyKeys.assembly)
     )
     settings(Defaults.itSettings: _*)
