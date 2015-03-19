@@ -93,10 +93,6 @@ object IndexCalculator {
       accumulator :+ TimeSerie(element.day, alpha * element.value + (1 - alpha) * accumulator.last.value)
     }.tail
 
-  def printTimeSerieValues(series: Seq[TimeSerie]) {
-    series.foreach(ts => println(ts.value))
-  }
-
   def computeOSCP(volIndex: Seq[TimeSerie], sVolIndex: Seq[TimeSerie], viMax: Double, viMin: Double)
       : Seq[TimeSerie] =
     volIndex.zip(sVolIndex).map {
