@@ -62,4 +62,20 @@ class IndexCalculatorTest extends FlatSpec with Matchers with PrivateMethodTeste
       TimeSerie(TestDay + 2.days, 15.983333333333334)
     ))
   }
+
+  it should "compute Negative Volume Index" in new TickDataForTest {
+    IndexCalculator.computeVolumeIndex(tickClosingValuesData,
+      (today, yesterday) => today >= yesterday) should be (Seq(
+        TimeSerie(TestDay, 1000.0), TimeSerie(TestDay + 1.days, 999.6862252902416),
+        TimeSerie(TestDay + 2.days, 999.6862252902416)
+    ))
+  }
+
+  it should "compute Positive Volume Index" in new TickDataForTest {
+    IndexCalculator.computeVolumeIndex(tickClosingValuesData,
+      (today, yesterday) => today < yesterday) should be (Seq(
+      TimeSerie(TestDay, 1000.0), TimeSerie(TestDay + 1.days, 1000.0),
+      TimeSerie(TestDay + 2.days, 1004.3942247332078)
+    ))
+  }
 }

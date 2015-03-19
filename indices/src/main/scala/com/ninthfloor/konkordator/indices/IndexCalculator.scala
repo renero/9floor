@@ -77,11 +77,7 @@ object IndexCalculator {
       val yesterdaysVI = index.last.value
       val value =
         if (matchesVolumeIndex(pair(1).volume, pair(0).volume)) yesterdaysVI
-        else {
-          def percentagePriceChange(pair: Seq[TickData]): Double =
-            ((pair(1).price - pair(0).price) / pair(0).price) * 100
-          yesterdaysVI + percentagePriceChange(pair)
-        }
+        else yesterdaysVI * pair(1).price / pair(0).price
       index :+ TimeSerie(pair(1).day, value)
     }
   }
