@@ -129,6 +129,15 @@ object IndexCalculator {
     moneyFlowRatio.map(x => TimeSerie(x.day, 100 - (100 / (1 + x.value))))
   }
 
+  def filterIndices(indices: Seq[TimeSerie], currentDate: DateTime, windowSize: Int): Seq[TimeSerie] =
+    indices.filter(_.day <= currentDate).reverseIterator.take(windowSize).toSeq
+
+  def highest(indices: Seq[TimeSerie], currentDate: DateTime, windowSize: Int): TimeSerie =
+    filterIndices(indices, currentDate, windowSize).maxBy(_.value)
+
+  def lowest(indices: Seq[TimeSerie], currentDate: DateTime, windowSize: Int): TimeSerie =
+    filterIndices(indices, currentDate, windowSize).minBy(_.value)
+
   /**
    * Compute the highest and lowest value in a series of Index Data (date, value) pairs
    * @param indices       The indices to search the max and min over.
@@ -137,15 +146,6 @@ object IndexCalculator {
    */
   def highestLowest(indices: Seq[TimeSerie], currentDate: DateTime, windowSize: Int): (TimeSerie, TimeSerie) =
     (highest(indices, currentDate, windowSize), lowest(indices, currentDate, windowSize))
-
-  def highest(indices: Seq[TimeSerie], currentDate: DateTime, windowSize: Int): TimeSerie =
-    filterIndices(indices, currentDate, windowSize).maxBy(_.value)
-
-  def lowest(indices: Seq[TimeSerie], currentDate: DateTime, windowSize: Int): TimeSerie =
-    filterIndices(indices, currentDate, windowSize).minBy(_.value)
-
-  def filterIndices(indices: Seq[TimeSerie], currentDate: DateTime, windowSize: Int): Seq[TimeSerie] =
-    indices.filter(_.day <= currentDate).reverseIterator.take(windowSize).toSeq
 
   def mean(xs: Seq[Double]): Double = if (xs.isEmpty) 0.0 else xs.sum / xs.size
 
