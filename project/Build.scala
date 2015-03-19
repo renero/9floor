@@ -10,7 +10,7 @@ object Build extends sbt.Build {
   def projectId(name: String) = s"konkordator-$name"
 
   lazy val testParallelSettings = Seq(
-    parallelExecution in ScoverageSbtPlugin.scoverageTest := false, parallelExecution in Test := false)
+    parallelExecution in ScoverageSbtPlugin.scoverageTest := false)
 
   val KonkordatorMergeStrategy = mergeStrategy in assembly := {
     case "reference.conf" => MergeStrategy.concat
