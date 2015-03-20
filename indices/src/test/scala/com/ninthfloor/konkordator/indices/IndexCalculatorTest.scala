@@ -1,31 +1,27 @@
 package com.ninthfloor.konkordator.indices
 
 import com.github.nscala_time.time.Imports._
-import org.joda.time.DateTime
-import org.scalatest.{FlatSpec, Matchers, PrivateMethodTester}
-
 import com.ninthfloor.konkordator.util.LocalSparkContext
-
+import org.scalatest.{FlatSpec, Matchers, PrivateMethodTester}
 
 class IndexCalculatorTest extends FlatSpec with Matchers with PrivateMethodTester with LocalSparkContext {
 
-  private val TestDay = new DateTime(2013, 1, 2, 0, 0, 0)
+  private val TestDay = new LocalDate(2013, 1, 2)
 
   trait WithTickData {
-    val midnight = new DateTime(1970, 1, 1, 23, 59, 59)
-    val tickData = sc.parallelize(Seq(
-      TickData(TestDay, new DateTime(0, 1, 1, 17, 25, 19), 15.9350, 1950.0000, 0, 0),
-      TickData(TestDay, new DateTime(0, 1, 1, 17, 25, 22), 15.9250, 73.0000, 0, 0),
-      TickData(TestDay, new DateTime(0, 1, 1, 17, 25, 44), 15.9350, 1300.0000, 0, 0),
-      TickData(TestDay + 1.days, new DateTime(0, 1, 1, 9, 57, 10), 15.9350, 0.0000, 0, 0),
-      TickData(TestDay + 1.days, new DateTime(0, 1, 1, 9, 57, 10), 15.9300, 668.0000, 0, 0),
-      TickData(TestDay + 2.days, new DateTime(0, 1, 1, 17, 29, 50), 15.9500, 103.0000, 0, 0),
-      TickData(TestDay + 2.days, new DateTime(0, 1, 1, 17, 35, 27), 16.0000, 1276965.0000, 0, 0)
+    val ticks = sc.parallelize(Seq(
+      Tick(TestDay, new LocalTime(17, 25, 19), 15.9350, 1950.0000),
+      Tick(TestDay, new LocalTime(17, 25, 22), 15.9250, 73.0000),
+      Tick(TestDay, new LocalTime(17, 25, 44), 15.9350, 1300.0000),
+      Tick(TestDay + 1.days, new LocalTime(9, 57, 10), 15.9350, 0.0000),
+      Tick(TestDay + 1.days, new LocalTime(9, 57, 10), 15.9300, 668.0000),
+      Tick(TestDay + 2.days, new LocalTime(17, 29, 50), 15.9500, 103.0000),
+      Tick(TestDay + 2.days, new LocalTime(17, 35, 27), 16.0000, 1276965.0000)
     ))
-    val tickClosingValuesData = Seq(
-      TickData(TestDay, midnight, 15.9350, 3323.0000, 15.9250, 15.9350),
-      TickData(TestDay + 1.days, midnight, 15.9300, 668.0000, 15.9300, 15.9350),
-      TickData(TestDay + 2.days, midnight, 16.0000, 1277068.0000, 15.9500, 16.0000)
+    val closingValues = Seq(
+      ClosingValue(TestDay, 15.9350, 3323.0000, 15.9250, 15.9350),
+      ClosingValue(TestDay + 1.days, 15.9300, 668.0000, 15.9300, 15.9350),
+      ClosingValue(TestDay + 2.days, 16.0000, 1277068.0000, 15.9500, 16.0000)
     )
   }
 
@@ -68,10 +64,10 @@ class IndexCalculatorTest extends FlatSpec with Matchers with PrivateMethodTeste
   }
 
   it should "compute the closing values" in new WithTickData {
-    IndexCalculator.closingValues(tickData) should be (Seq(
-      TickData(TestDay, midnight, 15.9350, 3323.0000, 15.9250, 15.9350),
-      TickData(TestDay + 1.days, midnight, 15.9300, 668.0000, 15.9300, 15.9350),
-      TickData(TestDay + 2.days, midnight, 16.0000, 1277068.0000, 15.9500, 16.0000)
+    IndexCalculator.closingValues(ticks) should be (Seq(
+      ClosingValue(TestDay, 15.9350, 3323.0000, 15.9250, 15.9350),
+      ClosingValue(TestDay + 1.days, 15.9300, 668.0000, 15.9300, 15.9350),
+      ClosingValue(TestDay + 2.days, 16.0000, 1277068.0000, 15.9500, 16.0000)
     ))
   }
 
@@ -82,14 +78,14 @@ class IndexCalculatorTest extends FlatSpec with Matchers with PrivateMethodTeste
   }
 
   it should "computeTypical (money flow index)" in new WithTickData {
-    IndexCalculator.computeTypical(tickClosingValuesData) should be (Seq(
+    IndexCalculator.computeTypical(closingValues) should be (Seq(
       TimeSerie(TestDay, 15.931666666666667), TimeSerie(TestDay + 1.days, 15.931666666666667),
       TimeSerie(TestDay + 2.days, 15.983333333333334)
     ))
   }
 
   it should "compute Negative Volume Index" in new WithTickData {
-    IndexCalculator.computeVolumeIndex(tickClosingValuesData,
+    IndexCalculator.computeVolumeIndex(closingValues,
       (today, yesterday) => today >= yesterday) should be (Seq(
         TimeSerie(TestDay, 1000.0), TimeSerie(TestDay + 1.days, 999.6862252902416),
         TimeSerie(TestDay + 2.days, 999.6862252902416)
@@ -97,7 +93,7 @@ class IndexCalculatorTest extends FlatSpec with Matchers with PrivateMethodTeste
   }
 
   it should "compute Positive Volume Index" in new WithTickData {
-    IndexCalculator.computeVolumeIndex(tickClosingValuesData,
+    IndexCalculator.computeVolumeIndex(closingValues,
       (today, yesterday) => today < yesterday) should be (Seq(
       TimeSerie(TestDay, 1000.0), TimeSerie(TestDay + 1.days, 1000.0),
       TimeSerie(TestDay + 2.days, 1004.3942247332078)
