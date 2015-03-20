@@ -11,8 +11,8 @@ object IndexCalculator {
   def process(sc: SparkContext, path: String) {
     val ticks = sc.textFile(path).map(Tick.readCsv)
     val close = closingValues(ticks)
-    val PVI = computeVolumeIndex(close, (today, yesterday) => today < yesterday)
-    val NVI = computeVolumeIndex(close, (today, yesterday) => today >= yesterday)
+    val PVI = computeVolumeIndex(close, _ < _)
+    val NVI = computeVolumeIndex(close, _ >= _)
     val sPVI = exponentialAverage(PVI)
     val sNVI = exponentialAverage(NVI)
     val (pvimax, pvimin) = highestLowest(sPVI, CurrentDate, sPVI.size)
@@ -198,8 +198,8 @@ object IndexCalculator {
       firstRSIDay,
       Math.abs(gainLoss.take(windowSize).collect { case ts if ts.value < 0 => ts.value }.sum / windowSize)
     )
-    val avgGain = avgGainLoss(windowSize, gainLoss, firstAvgGain, ts => ts.value >= 0)
-    val avgLoss = avgGainLoss(windowSize, gainLoss, firstAvgLoss, ts => ts.value < 0)
+    val avgGain = avgGainLoss(windowSize, gainLoss, firstAvgGain, _.value >= 0)
+    val avgLoss = avgGainLoss(windowSize, gainLoss, firstAvgLoss, _.value < 0)
     avgGain.zip(avgLoss).map {
       case (gain, loss) =>
         val lossPercentage = if (loss.value == 0) 0 else 100 - (100 / (1 + (gain.value / loss.value)))
@@ -212,8 +212,8 @@ object IndexCalculator {
       values.map(closingValue => TimeSerie(closingValue.date, selector(closingValue)))
     closingValues.sliding(dayPeriod).map { period =>
       val lastDay = period.last.date
-      val highestHigh = highest(tsFromTick(period, closingValue => closingValue.high), lastDay, dayPeriod)
-      val lowestLow = lowest(tsFromTick(period, closingValue => closingValue.low), lastDay, dayPeriod)
+      val highestHigh = highest(tsFromTick(period, _.high), lastDay, dayPeriod)
+      val lowestLow = lowest(tsFromTick(period, _.low), lastDay, dayPeriod)
       TimeSerie(lastDay, ((period.last.price - lowestLow.value) / (highestHigh.value - lowestLow.value)) * 100)
     }.toSeq
   }
