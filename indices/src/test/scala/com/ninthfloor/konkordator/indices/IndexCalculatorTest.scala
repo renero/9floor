@@ -25,26 +25,26 @@ class IndexCalculatorTest extends FlatSpec with Matchers with PrivateMethodTeste
     )
   }
 
-  trait WithTimeSerie {
-    val timeSerie = Seq(TimeSerie(TestDay, 3.0), TimeSerie(TestDay, 4.5), TimeSerie(TestDay, 6.0))
+  trait WithIndexValues {
+    val indexValues = Seq(IndexValue(TestDay, 3.0), IndexValue(TestDay, 4.5), IndexValue(TestDay, 6.0))
   }
 
-  "IndexCalculator" should "filter indices" in new WithTimeSerie {
-    IndexCalculator.filterIndices(timeSerie, TestDay, 2) should be (Seq(
-      TimeSerie(TestDay, 6.0), TimeSerie(TestDay, 4.5)
+  "IndexCalculator" should "filter indices" in new WithIndexValues {
+    IndexCalculator.filterIndices(indexValues, TestDay, 2) should be (Seq(
+      IndexValue(TestDay, 6.0), IndexValue(TestDay, 4.5)
     ))
   }
 
-  it should "extract highest" in new WithTimeSerie {
-    IndexCalculator.highest(timeSerie, TestDay, 2) should be (TimeSerie(TestDay, 6.0))
+  it should "extract highest" in new WithIndexValues {
+    IndexCalculator.highest(indexValues, TestDay, 2) should be (IndexValue(TestDay, 6.0))
   }
 
-  it should "extract lowest" in new WithTimeSerie {
-    IndexCalculator.lowest(timeSerie, TestDay, 2) should be (TimeSerie(TestDay, 4.5))
+  it should "extract lowest" in new WithIndexValues {
+    IndexCalculator.lowest(indexValues, TestDay, 2) should be (IndexValue(TestDay, 4.5))
   }
 
-  it should "extract highest and lowest" in new WithTimeSerie {
-    IndexCalculator.highestLowest(timeSerie, TestDay, 2) should be ((TimeSerie(TestDay, 6.0), TimeSerie(TestDay, 4.5)))
+  it should "extract highest and lowest" in new WithIndexValues {
+    IndexCalculator.highestLowest(indexValues, TestDay, 2) should be ((IndexValue(TestDay, 6.0), IndexValue(TestDay, 4.5)))
   }
 
   it should "calculate mean" in {
@@ -71,32 +71,32 @@ class IndexCalculatorTest extends FlatSpec with Matchers with PrivateMethodTeste
     ))
   }
 
-  it should "compute exponential average" in new WithTimeSerie {
-    IndexCalculator.exponentialAverage(timeSerie, 0.1) should be (Seq(
-      TimeSerie(TestDay, 3.0), TimeSerie(TestDay, 3.1500000000000004), TimeSerie(TestDay, 3.4350000000000005)
+  it should "compute exponential average" in new WithIndexValues {
+    IndexCalculator.exponentialAverage(indexValues, 0.1) should be (Seq(
+      IndexValue(TestDay, 3.0), IndexValue(TestDay, 3.1500000000000004), IndexValue(TestDay, 3.4350000000000005)
     ))
   }
 
   it should "computeTypical (money flow index)" in new WithTickData {
     IndexCalculator.computeTypical(closingValues) should be (Seq(
-      TimeSerie(TestDay, 15.931666666666667), TimeSerie(TestDay + 1.days, 15.931666666666667),
-      TimeSerie(TestDay + 2.days, 15.983333333333334)
+      IndexValue(TestDay, 15.931666666666667), IndexValue(TestDay + 1.days, 15.931666666666667),
+      IndexValue(TestDay + 2.days, 15.983333333333334)
     ))
   }
 
   it should "compute Negative Volume Index" in new WithTickData {
     IndexCalculator.computeVolumeIndex(closingValues,
       (today, yesterday) => today >= yesterday) should be (Seq(
-        TimeSerie(TestDay, 1000.0), TimeSerie(TestDay + 1.days, 999.6862252902416),
-        TimeSerie(TestDay + 2.days, 999.6862252902416)
+        IndexValue(TestDay, 1000.0), IndexValue(TestDay + 1.days, 999.6862252902416),
+        IndexValue(TestDay + 2.days, 999.6862252902416)
     ))
   }
 
   it should "compute Positive Volume Index" in new WithTickData {
     IndexCalculator.computeVolumeIndex(closingValues,
       (today, yesterday) => today < yesterday) should be (Seq(
-      TimeSerie(TestDay, 1000.0), TimeSerie(TestDay + 1.days, 1000.0),
-      TimeSerie(TestDay + 2.days, 1004.3942247332078)
+      IndexValue(TestDay, 1000.0), IndexValue(TestDay + 1.days, 1000.0),
+      IndexValue(TestDay + 2.days, 1004.3942247332078)
     ))
   }
 }
