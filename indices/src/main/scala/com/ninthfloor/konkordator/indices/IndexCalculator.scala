@@ -11,23 +11,23 @@ object IndexCalculator {
   def process(sc: SparkContext, path: String) {
     val ticks = sc.textFile(path).map(Tick.readCsv)
     val close = closingValues(ticks)
-    val PVI = computeVolumeIndex(close, _ < _)
-    val NVI = computeVolumeIndex(close, _ >= _)
-    val sPVI = exponentialAverage(PVI)
-    val sNVI = exponentialAverage(NVI)
-    val (pvimax, pvimin) = highestLowest(sPVI, CurrentDate, sPVI.size)
-    val (nvimax, nvimin) = highestLowest(sNVI, CurrentDate, sNVI.size)
+    val pvi = computeVolumeIndex(close, _ < _)
+    val nvi = computeVolumeIndex(close, _ >= _)
+    val sPvi = exponentialAverage(pvi)
+    val sNvi = exponentialAverage(nvi)
+    val (pvimax, pvimin) = highestLowest(sPvi, CurrentDate, sPvi.size)
+    val (nvimax, nvimin) = highestLowest(sNvi, CurrentDate, sNvi.size)
 
-    val oscp = computeOSCP(PVI, sPVI, pvimax.value, pvimin.value)
-    val blue = computeOSCP(NVI, sNVI, nvimax.value, nvimin.value)
+    val oscp = computeOSCP(pvi, sPvi, pvimax.value, pvimin.value)
+    val blue = computeOSCP(nvi, sNvi, nvimax.value, nvimin.value)
 
-    val MFI = moneyFlowIndex(close)
-    val bollingerOsc = bollingerOscillator(close)
-    val RSI = relativeStrengthIndex(close)
-    val STOC = stochasticOscillator(close.toSeq, 14, 3)
+    val mfi = moneyFlowIndex(close)
+    val bosc = bollingerOscillator(close)
+    val rsi = relativeStrengthIndex(close)
+    val stoc = stochasticOscillator(close, 14, 3)
 
     val firstDay = new LocalDate(2013, 2, 5)
-    val brown = computeBrown(RSI, MFI, bollingerOsc, STOC, firstDay)
+    val brown = computeBrown(rsi, mfi, bosc, stoc, firstDay)
     val green = computeGreen(brown, oscp, firstDay)
   }
 
@@ -229,21 +229,21 @@ object IndexCalculator {
       BOSC: Seq[IndexValue],
       STOC: Seq[IndexValue],
       firstDay: LocalDate): Seq[IndexValue] = {
-    val rsi = laterOrEqualThan(RSI, firstDay)
-    val mfi = laterOrEqualThan(MFI, firstDay)
-    val bosc = laterOrEqualThan(BOSC, firstDay)
-    val stoc = laterOrEqualThan(STOC, firstDay)
-    val trio = (rsi, mfi, bosc).zipped
-    def flattenQuad(quads: Seq[((IndexValue, IndexValue, IndexValue), IndexValue)])
-        : Seq[(IndexValue, IndexValue, IndexValue, IndexValue)] =
-      quads.map(q => (q._1._1, q._1._2, q._1._3, q._2))
-    val quad = flattenQuad((trio, stoc).zipped.toSeq)
-    quad.map(x => IndexValue(x._1.date, (x._1.value + x._2.value + x._3.value + (x._4.value / 3)) / 2))
+    val filteredRsi = laterOrEqualThan(RSI, firstDay)
+    val filteredMfi = laterOrEqualThan(MFI, firstDay)
+    val filteredBosc = laterOrEqualThan(BOSC, firstDay)
+    val filteredStoc = laterOrEqualThan(STOC, firstDay)
+    ((filteredRsi, filteredMfi, filteredBosc).zipped, filteredStoc).zipped.map {
+      case ((rsiItem, mfiItem, boscItem), stocItem) =>
+        IndexValue(rsiItem.date, (rsiItem.value + mfiItem.value + boscItem.value + (stocItem.value / 3)) / 2)
+    }.toSeq
   }
 
   def computeGreen(brown: Seq[IndexValue], oscp: Seq[IndexValue], firstDay: LocalDate): Seq[IndexValue] = {
-    val m = laterOrEqualThan(brown, firstDay)
-    val o = laterOrEqualThan(oscp, firstDay)
-    (m, o).zipped.toSeq.map(x => IndexValue(x._1.date, x._1.value + x._2.value))
+    val filteredBrown = laterOrEqualThan(brown, firstDay)
+    val filteredOscp = laterOrEqualThan(oscp, firstDay)
+    (filteredBrown, filteredOscp).zipped.toSeq.map {
+      case (brownItem, oscpItem) => IndexValue(brownItem.date, brownItem.value + oscpItem.value)
+    }
   }
 }
