@@ -93,7 +93,8 @@ object IndexCalculator {
     val initValue = IndexValue(closingValues(0).date, 1)
     val upDownList = closingValues.sliding(2).foldLeft(Seq[IndexValue](initValue)) { (upOrDownList, pair) =>
       val Seq(firstClosingValue, secondClosingValue) = pair
-      upOrDownList :+ IndexValue(secondClosingValue.date, if (secondClosingValue.price >= firstClosingValue.price) 1 else -1)
+      upOrDownList :+ IndexValue(secondClosingValue.date,
+        if (secondClosingValue.price >= firstClosingValue.price) 1 else -1)
     }.tail
     rawMoneyFlow.tail.zip(upDownList).map { case (raw, sign) => IndexValue(raw.date, raw.value * sign.value) }
   }
@@ -171,11 +172,12 @@ object IndexCalculator {
   }
 
   /** RSI **/
-  def avgGainLoss(wSize: Int, gainLoss: Seq[IndexValue], firstAvg: IndexValue, criteria: IndexValue => Boolean)
+  def avgGainLoss(windowSize: Int, gainLoss: Seq[IndexValue], firstAvg: IndexValue, criteria: IndexValue => Boolean)
       : Seq[IndexValue] =
-    gainLoss.drop(wSize).foldLeft(Seq[IndexValue](firstAvg)) { (avgLossList, current) =>
+    gainLoss.drop(windowSize).foldLeft(Seq[IndexValue](firstAvg)) { (avgLossList, current) =>
       val currentValue = if (criteria(current)) Math.abs(current.value) else 0
-      avgLossList :+ IndexValue(current.date, Math.abs((avgLossList.last.value * (wSize - 1) + currentValue) / wSize))
+      avgLossList :+ IndexValue(current.date,
+        Math.abs((avgLossList.last.value * (windowSize - 1) + currentValue) / windowSize))
     }
 
   /**
@@ -185,10 +187,12 @@ object IndexCalculator {
    * @return
    */
   def relativeStrengthIndex(closingValues: Seq[ClosingValue], windowSize: Int = 14): Seq[IndexValue] = {
-    val gainLoss = closingValues.sliding(2).foldLeft(Seq[IndexValue]()) { (gainLossList, pair) =>
-      val Seq(firstClosingValue, secondClosingValue) = pair
-      gainLossList :+ IndexValue(secondClosingValue.date, secondClosingValue.price - firstClosingValue.price)
-    }
+    val gainLoss =
+      IndexValue(closingValues.head.date, 0.0) +:
+        closingValues.sliding(2).foldLeft(Seq[IndexValue]()) { (gainLossList, pair) =>
+            val Seq(firstClosingValue, secondClosingValue) = pair
+            gainLossList :+ IndexValue(secondClosingValue.date, secondClosingValue.price - firstClosingValue.price)
+        }
     val firstRSIDay = gainLoss.take(windowSize + 1).last.date
     val firstAvgGain = IndexValue(
       firstRSIDay,
@@ -200,10 +204,10 @@ object IndexCalculator {
     )
     val avgGain = avgGainLoss(windowSize, gainLoss, firstAvgGain, _.value >= 0)
     val avgLoss = avgGainLoss(windowSize, gainLoss, firstAvgLoss, _.value < 0)
-    avgGain.zip(avgLoss).map {
+    avgGain.tail.zip(avgLoss.tail).map {
       case (gain, loss) =>
-        val lossPercentage = if (loss.value == 0) 0 else 100 - (100 / (1 + (gain.value / loss.value)))
-        IndexValue(gain.date, 100 - lossPercentage)
+        val rsi = if (loss.value == 0) 100 else 100 - (100 / (1 + (gain.value / loss.value)))
+        IndexValue(gain.date, rsi)
     }
   }
 
