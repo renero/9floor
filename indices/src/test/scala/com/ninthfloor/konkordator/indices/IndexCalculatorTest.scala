@@ -44,7 +44,9 @@ class IndexCalculatorTest extends FlatSpec with Matchers with PrivateMethodTeste
   }
 
   it should "extract highest and lowest" in new WithIndexValues {
-    IndexCalculator.highestLowest(indexValues, TestDay, 2) should be ((IndexValue(TestDay, 6.0), IndexValue(TestDay, 4.5)))
+    IndexCalculator.highestLowest(indexValues, TestDay, 2) should be (
+      (IndexValue(TestDay, 6.0), IndexValue(TestDay, 4.5))
+    )
   }
 
   it should "calculate mean" in {
@@ -77,13 +79,6 @@ class IndexCalculatorTest extends FlatSpec with Matchers with PrivateMethodTeste
     ))
   }
 
-  it should "computeTypical (money flow index)" in new WithTickData {
-    IndexCalculator.computeTypical(closingValues) should be (Seq(
-      IndexValue(TestDay, 15.931666666666667), IndexValue(TestDay + 1.days, 15.931666666666667),
-      IndexValue(TestDay + 2.days, 15.983333333333334)
-    ))
-  }
-
   it should "compute Negative Volume Index" in new WithTickData {
     IndexCalculator.computeVolumeIndex(closingValues, _ >= _) should be (Seq(
       IndexValue(TestDay, 1000.0), IndexValue(TestDay + 1.days, 999.6862252902416),
@@ -95,6 +90,35 @@ class IndexCalculatorTest extends FlatSpec with Matchers with PrivateMethodTeste
     IndexCalculator.computeVolumeIndex(closingValues, _ < _) should be (Seq(
       IndexValue(TestDay, 1000.0), IndexValue(TestDay + 1.days, 1000.0),
       IndexValue(TestDay + 2.days, 1004.3942247332078)
+    ))
+  }
+
+  it should "compute the Positive Oscillator Index" in {
+    val pvi = Seq(IndexValue(TestDay, 4.0), IndexValue(TestDay + 1.days, 6.0), IndexValue(TestDay + 2.days, 5.0))
+    val sPvi = Seq(IndexValue(TestDay, 3.0), IndexValue(TestDay, 3.0), IndexValue(TestDay, 4.0))
+    val pvimax = 4.0
+    val pvimin = 2.0
+    IndexCalculator.computeOSCP(pvi, sPvi, pvimax, pvimin) should be (Seq(
+      IndexValue(TestDay, 50.0), IndexValue(TestDay + 1.days, 150.0), IndexValue(TestDay + 2.days, 50.0))
+    )
+  }
+
+  it should "compute the Relative Strength Index" in new WithTickData {
+    IndexCalculator.relativeStrengthIndex(closingValues, 2) should be (Seq(
+      IndexValue(TestDay + 2.days, 96.55172413793053))
+    )
+  }
+
+  it should "compute the Stochastic Oscillator Index" in new WithTickData {
+    IndexCalculator.stochasticOscillator(closingValues, 2, 2) should be (Seq(
+      IndexValue(TestDay + 1.days, 49.99999999999112),  IndexValue(TestDay + 2.days, 100.0))
+    )
+  }
+
+  it should "computeTypical (money flow index)" in new WithTickData {
+    IndexCalculator.computeTypical(closingValues) should be (Seq(
+      IndexValue(TestDay, 15.931666666666667), IndexValue(TestDay + 1.days, 15.931666666666667),
+      IndexValue(TestDay + 2.days, 15.983333333333334)
     ))
   }
 }
